@@ -14,8 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-`FROM centos:7
+FROM centos:7
 
 #RUN yum install -y java-1.8.0-openjdk-devel.x86_64 unzip gettext nmap-ncat openssl, which gnupg, telnet \
 #&& yum clean all -y
@@ -23,9 +22,9 @@
 # 安装 zip 插件
 RUN yum install -y unzip && yum clean all -y
 # 添加 jdk jar 包
-ADD azul-jdk.zip /usr/local
+ADD jdk.zip /usr/local
 # 移动 jdk jar 包到自定位置,jak 解压缩后的包在 jdk 中，此版本只适用于 m1 芯片
-RUN  cd /usr/local && unzip azul-jdk.zip -d jdk && mv ./jdk/java java;
+RUN  cd /usr/local && unzip jdk.zip -d jdk && mv ./jdk/jdk java;
 
 # 配置环境变量
 ENV JAVA_HOME /usr/local/java
