@@ -16,6 +16,8 @@
  */
 package org.apache.rocketmq.dashboard.config;
 
+import java.util.ArrayList;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.common.MixAll;
 import org.slf4j.Logger;
@@ -29,6 +31,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 
 import java.io.File;
+import java.util.List;
 
 import static org.apache.rocketmq.client.ClientConfig.SEND_MESSAGE_WITH_VIP_CHANNEL_PROPERTY;
 
@@ -57,6 +60,8 @@ public class RMQConfigure {
 
     private Long timeoutMillis;
 
+    private List<String> namesrvAddrs = new ArrayList<>();
+
     public String getAccessKey() {
         return accessKey;
     }
@@ -75,6 +80,17 @@ public class RMQConfigure {
 
     public String getNamesrvAddr() {
         return namesrvAddr;
+    }
+
+    public List<String> getNamesrvAddrs() {
+        return namesrvAddrs;
+    }
+
+    public void setNamesrvAddrs(List<String> namesrvAddrs) {
+        this.namesrvAddrs = namesrvAddrs;
+        if (CollectionUtils.isNotEmpty(namesrvAddrs)) {
+            this.setNamesrvAddr(namesrvAddrs.get(0));
+        }
     }
 
     public void setNamesrvAddr(String namesrvAddr) {

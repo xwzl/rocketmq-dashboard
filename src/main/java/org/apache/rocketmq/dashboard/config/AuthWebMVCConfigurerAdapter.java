@@ -30,6 +30,7 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
 import javax.annotation.Resource;
@@ -49,17 +50,19 @@ public class AuthWebMVCConfigurerAdapter extends WebMvcConfigurerAdapter {
     public void addInterceptors(InterceptorRegistry registry) {
         if (configure.isLoginRequired()) {
             registry.addInterceptor(authInterceptor).addPathPatterns(
-                    "/cluster/**",
-                    "/consumer/**",
-                    "/dashboard/**",
-                    "/message/**",
-                    "/messageTrace/**",
-                    "/monitor/**",
-                    "/rocketmq/**",
-                    "/ops/**",
-                    "/producer/**",
-                    "/test/**",
-                    "/topic/**");
+                "/cluster/**",
+                "/consumer/**",
+                "/dashboard/**",
+                "/dlqMessage/**",
+                "/message/**",
+                "/messageTrace/**",
+                "/monitor/**",
+                "/rocketmq/**",
+                "/ops/**",
+                "/producer/**",
+                "/test/**",
+                "/topic/**",
+                "/acl/**");
         }
     }
 
@@ -74,9 +77,9 @@ public class AuthWebMVCConfigurerAdapter extends WebMvcConfigurerAdapter {
 
             @Override
             public Object resolveArgument(MethodParameter methodParameter, ModelAndViewContainer modelAndViewContainer,
-                                          NativeWebRequest nativeWebRequest, WebDataBinderFactory webDataBinderFactory) throws Exception {
+                NativeWebRequest nativeWebRequest, WebDataBinderFactory webDataBinderFactory) throws Exception {
                 UserInfo userInfo = (UserInfo) WebUtil.getValueFromSession((HttpServletRequest) nativeWebRequest.getNativeRequest(),
-                        UserInfo.USER_INFO);
+                    UserInfo.USER_INFO);
                 if (userInfo != null) {
                     return userInfo;
                 }
@@ -85,5 +88,10 @@ public class AuthWebMVCConfigurerAdapter extends WebMvcConfigurerAdapter {
         });
 
         super.addArgumentResolvers(argumentResolvers);  //REVIEW ME
+    }
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addViewController("*.htm").setViewName("forward:/app.html");
     }
 }

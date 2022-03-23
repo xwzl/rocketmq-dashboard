@@ -23,14 +23,19 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import javax.annotation.Resource;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.MQVersion;
+import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.admin.ConsumeStats;
 import org.apache.rocketmq.common.admin.RollbackStats;
 import org.apache.rocketmq.common.message.MessageQueue;
@@ -43,6 +48,7 @@ import org.apache.rocketmq.common.protocol.body.GroupList;
 import org.apache.rocketmq.common.protocol.body.SubscriptionGroupWrapper;
 import org.apache.rocketmq.common.protocol.route.BrokerData;
 import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
+import org.apache.rocketmq.dashboard.config.RMQConfigure;
 import org.apache.rocketmq.dashboard.model.ConsumerGroupRollBackStat;
 import org.apache.rocketmq.dashboard.model.GroupConsumeInfo;
 import org.apache.rocketmq.dashboard.model.QueueStatInfo;
@@ -62,8 +68,24 @@ import static com.google.common.base.Throwables.propagate;
 public class ConsumerServiceImpl extends AbstractCommonService implements ConsumerService {
     private Logger logger = LoggerFactory.getLogger(ConsumerServiceImpl.class);
 
+    @Resource
+    private RMQConfigure configure;
+
+    private static final Set<String> SYSTEM_GROUP_SET = new HashSet<>();
+
+    static {
+        SYSTEM_GROUP_SET.add(MixAll.TOOLS_CONSUMER_GROUP);
+        SYSTEM_GROUP_SET.add(MixAll.FILTERSRV_CONSUMER_GROUP);
+        SYSTEM_GROUP_SET.add(MixAll.SELF_TEST_CONSUMER_GROUP);
+        SYSTEM_GROUP_SET.add(MixAll.ONS_HTTP_PROXY_GROUP);
+        SYSTEM_GROUP_SET.add(MixAll.CID_ONSAPI_PULL_GROUP);
+        SYSTEM_GROUP_SET.add(MixAll.CID_ONSAPI_PERMISSION_GROUP);
+        SYSTEM_GROUP_SET.add(MixAll.CID_ONSAPI_OWNER_GROUP);
+        SYSTEM_GROUP_SET.add(MixAll.CID_SYS_RMQ_TRANS);
+    }
+
     @Override
-    public List<GroupConsumeInfo> queryGroupList() {
+    public List<GroupConsumeInfo> queryGroupList(boolean skipSysGroup) {
         Set<String> consumerGroupSet = Sets.newHashSet();
         try {
             ClusterInfo clusterInfo = mqAdminExt.examineBrokerClusterInfo();
@@ -78,6 +100,14 @@ public class ConsumerServiceImpl extends AbstractCommonService implements Consum
         List<GroupConsumeInfo> groupConsumeInfoList = Lists.newArrayList();
         for (String consumerGroup : consumerGroupSet) {
             groupConsumeInfoList.add(queryGroup(consumerGroup));
+        }
+        if (!skipSysGroup) {
+            groupConsumeInfoList.stream().map(group -> {
+                if (SYSTEM_GROUP_SET.contains(group.getGroup())) {
+                    group.setGroup(String.format("%s%s", "%SYS%", group.getGroup()));
+                }
+                return group;
+            }).collect(Collectors.toList());
         }
         Collections.sort(groupConsumeInfoList);
         return groupConsumeInfoList;
@@ -266,17 +296,39 @@ public class ConsumerServiceImpl extends AbstractCommonService implements Consum
 
     @Override
     public boolean deleteSubGroup(DeleteSubGroupRequest deleteSubGroupRequest) {
+        Set<String> brokerSet = this.fetchBrokerNameSetBySubscriptionGroup(deleteSubGroupRequest.getGroupName());
+        List<String> brokerList = deleteSubGroupRequest.getBrokerNameList();
+        boolean deleteInNsFlag = false;
+        // If the list of brokers passed in by the request contains the list of brokers that the consumer is in, delete RETRY and DLQ topic in namesrv
+        if (brokerList.containsAll(brokerSet)) {
+            deleteInNsFlag = true;
+        }
         try {
             ClusterInfo clusterInfo = mqAdminExt.examineBrokerClusterInfo();
             for (String brokerName : deleteSubGroupRequest.getBrokerNameList()) {
                 logger.info("addr={} groupName={}", clusterInfo.getBrokerAddrTable().get(brokerName).selectBrokerAddr(), deleteSubGroupRequest.getGroupName());
-                mqAdminExt.deleteSubscriptionGroup(clusterInfo.getBrokerAddrTable().get(brokerName).selectBrokerAddr(), deleteSubGroupRequest.getGroupName());
+                mqAdminExt.deleteSubscriptionGroup(clusterInfo.getBrokerAddrTable().get(brokerName).selectBrokerAddr(), deleteSubGroupRequest.getGroupName(), true);
+                // Delete %RETRY%+Group and %DLQ%+Group in broker and namesrv
+                deleteResources(MixAll.RETRY_GROUP_TOPIC_PREFIX + deleteSubGroupRequest.getGroupName(), brokerName, clusterInfo, deleteInNsFlag);
+                deleteResources(MixAll.DLQ_GROUP_TOPIC_PREFIX + deleteSubGroupRequest.getGroupName(), brokerName, clusterInfo, deleteInNsFlag);
             }
         }
         catch (Exception e) {
             throw propagate(e);
         }
         return true;
+    }
+
+    private void deleteResources(String topic, String brokerName, ClusterInfo clusterInfo, boolean deleteInNsFlag) throws Exception {
+        mqAdminExt.deleteTopicInBroker(Sets.newHashSet(clusterInfo.getBrokerAddrTable().get(brokerName).selectBrokerAddr()), topic);
+        Set<String> nameServerSet = null;
+        if (StringUtils.isNotBlank(configure.getNamesrvAddr())) {
+            String[] ns = configure.getNamesrvAddr().split(";");
+            nameServerSet = new HashSet<>(Arrays.asList(ns));
+        }
+        if (deleteInNsFlag) {
+            mqAdminExt.deleteTopicInNameServer(nameServerSet, topic);
+        }
     }
 
     @Override

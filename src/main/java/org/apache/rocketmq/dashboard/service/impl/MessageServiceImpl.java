@@ -31,6 +31,7 @@ import org.apache.rocketmq.acl.common.SessionCredentials;
 import org.apache.rocketmq.client.consumer.DefaultMQPullConsumer;
 import org.apache.rocketmq.client.consumer.PullResult;
 import org.apache.rocketmq.client.consumer.PullStatus;
+import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.Pair;
 import org.apache.rocketmq.common.message.MessageClientIDSetter;
@@ -111,6 +112,9 @@ public class MessageServiceImpl implements MessageService {
                 }
             });
         } catch (Exception err) {
+            if (err instanceof MQClientException) {
+                throw new ServiceException(-1, ((MQClientException) err).getErrorMessage());
+            }
             throw Throwables.propagate(err);
         }
     }
@@ -325,7 +329,7 @@ public class MessageServiceImpl implements MessageService {
                         List<MessageExt> msgFoundList = pullResult.getMsgFoundList();
                         for (int i = msgFoundList.size() - 1; i >= 0; i--) {
                             MessageExt messageExt = msgFoundList.get(i);
-                            if (messageExt.getStoreTimestamp() < query.getBegin()) {
+                            if (messageExt.getStoreTimestamp() > query.getEnd()) {
                                 end--;
                             } else {
                                 hasIllegalOffset = false;

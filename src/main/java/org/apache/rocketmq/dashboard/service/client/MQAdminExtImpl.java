@@ -91,29 +91,34 @@ public class MQAdminExtImpl implements MQAdminExt {
         MQAdminInstance.threadLocalMQAdminExt().createAndUpdateTopicConfig(addr, config);
     }
 
-    @Override public void createAndUpdatePlainAccessConfig(String addr,
+    @Override
+    public void createAndUpdatePlainAccessConfig(String addr,
         PlainAccessConfig plainAccessConfig) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-        
+        MQAdminInstance.threadLocalMQAdminExt().createAndUpdatePlainAccessConfig(addr, plainAccessConfig);
     }
 
-    @Override public void deletePlainAccessConfig(String addr,
+    @Override
+    public void deletePlainAccessConfig(String addr,
         String accessKey) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-
+        MQAdminInstance.threadLocalMQAdminExt().deletePlainAccessConfig(addr, accessKey);
     }
 
-    @Override public void updateGlobalWhiteAddrConfig(String addr,
+    @Override
+    public void updateGlobalWhiteAddrConfig(String addr,
         String globalWhiteAddrs) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-
+        MQAdminInstance.threadLocalMQAdminExt().updateGlobalWhiteAddrConfig(addr, globalWhiteAddrs);
     }
 
-    @Override public ClusterAclVersionInfo examineBrokerClusterAclVersionInfo(
+    @Override
+    public ClusterAclVersionInfo examineBrokerClusterAclVersionInfo(
         String addr) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         return null;
     }
 
-    @Override public AclConfig examineBrokerClusterAclConfig(
+    @Override
+    public AclConfig examineBrokerClusterAclConfig(
         String addr) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-        return null;
+        return MQAdminInstance.threadLocalMQAdminExt().examineBrokerClusterAclConfig(addr);
     }
 
     @Override
@@ -236,6 +241,12 @@ public class MQAdminExtImpl implements MQAdminExt {
     }
 
     @Override
+    public int addWritePermOfBroker(String namesrvAddr,
+        String brokerName) throws RemotingCommandException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQClientException {
+        return MQAdminInstance.threadLocalMQAdminExt().addWritePermOfBroker(namesrvAddr, brokerName);
+    }
+
+    @Override
     public void putKVConfig(String namespace, String key, String value) {
         MQAdminInstance.threadLocalMQAdminExt().putKVConfig(namespace, key, value);
     }
@@ -272,8 +283,9 @@ public class MQAdminExtImpl implements MQAdminExt {
     }
 
     @Override
-    public void deleteSubscriptionGroup(String addr, String groupName, boolean removeOffset) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-        throw new UnsupportedOperationException();
+    public void deleteSubscriptionGroup(String addr, String groupName, boolean removeOffset)
+        throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
+        MQAdminInstance.threadLocalMQAdminExt().deleteSubscriptionGroup(addr, groupName, removeOffset);
     }
 
     @Override
@@ -511,9 +523,21 @@ public class MQAdminExtImpl implements MQAdminExt {
     }
 
     @Override
-    public TopicConfigSerializeWrapper getAllTopicGroup(String brokerAddr,
+    public SubscriptionGroupWrapper getUserSubscriptionGroup(String brokerAddr,
         long timeoutMillis) throws InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException, MQBrokerException {
-        return MQAdminInstance.threadLocalMQAdminExt().getAllTopicGroup(brokerAddr, timeoutMillis);
+        return MQAdminInstance.threadLocalMQAdminExt().getUserSubscriptionGroup(brokerAddr, timeoutMillis);
+    }
+
+    @Override
+    public TopicConfigSerializeWrapper getAllTopicConfig(String brokerAddr,
+        long timeoutMillis) throws InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException, MQBrokerException {
+        return MQAdminInstance.threadLocalMQAdminExt().getAllTopicConfig(brokerAddr, timeoutMillis);
+    }
+
+    @Override
+    public TopicConfigSerializeWrapper getUserTopicConfig(String brokerAddr, boolean specialTopic,
+        long timeoutMillis) throws InterruptedException, RemotingException, MQBrokerException, MQClientException {
+        return MQAdminInstance.threadLocalMQAdminExt().getUserTopicConfig(brokerAddr, specialTopic, timeoutMillis);
     }
 
     @Override
